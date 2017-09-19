@@ -1,2 +1,3 @@
 # FS_MCMC
-Feature Selection using MCMC, a test implement
+Feature Selection using Markov Chain Monte Carlo, a test implement.
+
