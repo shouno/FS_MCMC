@@ -25,7 +25,7 @@ class IsingModel:
         self.acccnt = 0
 
     def H(self, value):
-        return - 0.5 * self.beta * value.dot(self.Jmat.dot(value)) / self.size
+        return - 0.5 * value.dot(self.Jmat.dot(value)) / self.size
 
     def mcstep(self, value=None):
         if value is None:
@@ -38,7 +38,7 @@ class IsingModel:
             self.s[idx] *= -1
             newE = self.H(self.s)
             delta = newE - oldE
-            pdelta = np.exp(-delta)
+            pdelta = np.exp(-self.beta * delta)
 
             # print('r: %g, delta(new:%f - old:%f): %g' % (rvals[idx], newE, oldE, delta))
             if(rvals[idx] < pdelta):  # 'accept'

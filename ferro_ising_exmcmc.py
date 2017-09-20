@@ -28,7 +28,7 @@ class IsingModelMC:
         self.acccnt = 0
 
     def H(self, value):
-        return - 0.5 * self.beta * value.dot(self.Jmat.dot(value)) / self.size
+        return - 0.5 * value.dot(self.Jmat.dot(value)) / self.size
 
     def mcstep(self, value=None):
         if self.beta == 0.:  # 温度∞ (beta=0.0) は全とっかえ
@@ -46,7 +46,7 @@ class IsingModelMC:
             self.s[idx] *= -1
             newE = self.H(self.s)
             delta = newE - oldE
-            pdelta = np.exp(-delta)
+            pdelta = np.exp(-self.beta * delta)
 
             # print('r: %g, delta(new:%f - old:%f): %g' % (rvals[idx], newE, oldE, delta))
             if(rvals[idx] < pdelta):  # 'accept'
@@ -95,7 +95,7 @@ class IsingModelEMC:
         exlog = np.arange(self.nbeta)
         rvals = np.random.uniform(0., 1., len(exset))
         for (rval, (id1, id2, mc1, mc2)) in zip(rvals, exset):
-            r = (mc2.beta - mc1.beta) * (mc2.energy - mc1.energy)
+            r = np.exp((mc2.beta - mc1.beta) * (mc2.energy - mc1.energy))
             if rval <= r:  # accept exchange
                 (mc1.s, mc2.s) = (mc2.s, mc1.s)
                 (mc1.energy, mc2.energy) = (mc2.energy, mc1.energy)
