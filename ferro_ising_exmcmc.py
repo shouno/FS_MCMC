@@ -76,8 +76,8 @@ class IsingModelEMC:
     def __init__(self, size, betas=None, h=0.0, state=None, J=None):
         self.size = size
         if betas is None:
-            self.nbeta = 16
-            self.betas = [pow(1.25, l-self.nbeta+1) for l in range(self.nbeta)]
+            self.nbeta = 24
+            self.betas = [pow(1.25, l-16+1) for l in range(self.nbeta)]   # 決め打ち
             self.betas[0] = 0.
         self.MCs = [IsingModelMC(size, beta=beta, h=h, state=state, J=J) for beta in self.betas]
         # betas が偶数なとき
@@ -124,12 +124,11 @@ class IsingModelEMC:
 
 size = 128
 J0 = 1.0
-itrs = 50   # default linspacevalue
 Jmat = J0 * (np.ones((size, size)) - np.eye(size))
 
 model = IsingModelEMC(size, J=Jmat)
 
-burn = model.trace(3000)
-mclog = model.trace(1000)
+burn = model.trace(5000)
+mclog = model.trace(5000)
 
 np.savez('mclog.npz', exlogs=mclog[0], Eslog=mclog[1], Stateslog=mclog[2])
