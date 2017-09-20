@@ -129,5 +129,7 @@ Jmat = J0 * (np.ones((size, size)) - np.eye(size))
 
 model = IsingModelEMC(size, J=Jmat)
 
-burn = model.trace(1000)
-mclog = model.trace(500)
+burn = model.trace(3000)
+mclog = model.trace(1000)
+
+np.savez('mclog.npz', exlogs=mclog[0], Eslog=mclog[1], Stateslog=mclog[2])
