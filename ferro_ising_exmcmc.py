@@ -87,6 +87,8 @@ class IsingModelEMC:
     def mcexstep(self, isodd=False):
         for mc in self.MCs:
             mc.mcstep()
+
+        # exchange process
         if isodd:
             exset = self.oddset
         else:
@@ -106,11 +108,11 @@ class IsingModelEMC:
     def trace(self, iterations, reset=False):
         Es = []
         States = []
+        exlogs = []
         if reset is True:
             for mc in self.MCs:
                 mc.acccnt = 0
 
-        exlogs = []
         for it in tqdm(range(iterations)):
             exlogs.append(self.mcexstep(isodd=bool(it % 2)))
             Es.append([mc.energy for mc in self.MCs])
@@ -119,16 +121,18 @@ class IsingModelEMC:
         exlogs = np.array(exlogs).reshape((iterations, self.nbeta))
         Es = np.array(Es).reshape((iterations, self.nbeta))
         States = np.array(States).reshape((iterations, self.nbeta, self.size))
-        return exlogs, Es, States
+        return {'exlogs': exlogs, 'Eslog': Es, 'slog': States}
 
 
-size = 128
-J0 = 1.0
-Jmat = J0 * (np.ones((size, size)) - np.eye(size))
+if __name__ == '__main__':
+    size = 128
+    J0 = 1.0
+    Jmat = J0 * (np.ones((size, size)) - np.eye(size))
 
-model = IsingModelEMC(size, J=Jmat)
+    model = IsingModelEMC(size, J=Jmat)
 
-burn = model.trace(5000)
-mclog = model.trace(5000)
+    burn = model.trace(5000)
+    mclog = model.trace(5000)
 
-np.savez('mclog.npz', exlogs=mclog[0], Eslog=mclog[1], Stateslog=mclog[2])
+    np.savez('burnlog.npz', Betas=model.betas, exlogs=burn['exlogs'], Eslog=burn['Eslog'], Stateslog=burn['slog'])
+    np.savez('mclog.npz', Betas=model.betas, exlogs=mclog['exlogs'], Eslog=mclog['Eslog'], Stateslog=mclog['slog'])
