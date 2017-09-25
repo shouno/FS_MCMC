@@ -57,6 +57,8 @@ class IsingModelMC:
                 # print('reject')
                 self.s[idx] *= -1
 
+            assert self.energy == self.H(self.s), "Energy is incorrect"
+
     def trace(self, iter, reset=False):
         Es = []
         States = []
@@ -95,6 +97,9 @@ class IsingModelEMC:
             exset = self.evnset
 
         exlog = np.arange(self.nbeta)
+
+        return exlog
+
         rvals = np.random.uniform(0., 1., len(exset))
         for (rval, (id1, id2, mc1, mc2)) in zip(rvals, exset):
             r = np.exp((mc2.beta - mc1.beta) * (mc2.energy - mc1.energy))
@@ -102,6 +107,12 @@ class IsingModelEMC:
                 (mc1.s, mc2.s) = (mc2.s, mc1.s)
                 (mc1.energy, mc2.energy) = (mc2.energy, mc1.energy)
                 (exlog[id1], exlog[id2]) = (exlog[id2], exlog[id1])
+
+            mc1.energy = mc1.H(mc1.s)
+            mc2.energy = mc2.H(mc2.s)
+
+            assert mc1.energy == mc1.H(mc1.s), "mc1[%d] energy:%f != H: %f" % (id1, mc1.energy, mc1.H(mc1.s))
+            assert mc2.energy == mc2.H(mc2.s), "mc2[%d] energy:%f != H: %f" % (id2, mc2.energy, mc2.H(mc2.s))
 
         return exlog
 
@@ -114,7 +125,8 @@ class IsingModelEMC:
                 mc.acccnt = 0
 
         for it in tqdm(range(iterations)):
-            exlogs.append(self.mcexstep(isodd=bool(it % 2)))
+            exl = self.mcexstep(isodd=bool(it % 2))
+            exlogs.append(exl)
             Es.append([mc.energy for mc in self.MCs])
             States.append([mc.s for mc in self.MCs])
 
@@ -131,8 +143,8 @@ if __name__ == '__main__':
 
     model = IsingModelEMC(size, J=Jmat)
 
-    burn = model.trace(5000)
-    mclog = model.trace(5000)
+    burn = model.trace(1000)
+    mclog = model.trace(1000)
 
-    np.savez('burnlog.npz', Betas=model.betas, exlogs=burn['exlogs'], Eslog=burn['Eslog'], Stateslog=burn['slog'])
-    np.savez('mclog.npz', Betas=model.betas, exlogs=mclog['exlogs'], Eslog=mclog['Eslog'], Stateslog=mclog['slog'])
+    np.savez('burnlog.npz', Betas=model.betas, exlogs=burn['exlogs'], Eslog=burn['Eslog'], Slog=burn['slog'])
+    np.savez('mclog.npz', Betas=model.betas, exlogs=mclog['exlogs'], Eslog=mclog['Eslog'], Slog=mclog['slog'])
