@@ -33,6 +33,7 @@ class IsingModelMC:
     def mcstep(self, value=None):
         if self.beta == 0.:  # 温度∞ (beta=0.0) は全とっかえ
             self.s = np.random.binomial(1, 0.5, size=self.size) * 2 - 1.
+            self.energy = self.H(self.s)
             self.acccnt += self.size
             return
         # 有限温度の場合
@@ -57,7 +58,7 @@ class IsingModelMC:
                 # print('reject')
                 self.s[idx] *= -1
 
-            assert self.energy == self.H(self.s), "Energy is incorrect"
+            assert self.energy == self.H(self.s), "Energy is incorrect %f != %f" % (self.energy, self.H(self.s))
 
     def trace(self, iter, reset=False):
         Es = []
@@ -87,6 +88,9 @@ class IsingModelEMC:
         self.oddset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(1, self.nbeta-1, 2)]
 
     def mcexstep(self, isodd=False):
+        for i, mc in enumerate(self.MCs):
+            assert mc.energy == mc.H(mc.s), "pre: mc[%d]: %f <==> %f" % (i, mc.energy, mc.H(mc.s)) 
+
         for mc in self.MCs:
             mc.mcstep()
 
@@ -98,18 +102,24 @@ class IsingModelEMC:
 
         exlog = np.arange(self.nbeta)
 
-        return exlog
+        for i, mc in enumerate(self.MCs):
+            assert mc.energy == mc.H(mc.s), "post: mc[%d]: %f <==> %f" % (i, mc.energy, mc.H(mc.s)) 
 
         rvals = np.random.uniform(0., 1., len(exset))
         for (rval, (id1, id2, mc1, mc2)) in zip(rvals, exset):
             r = np.exp((mc2.beta - mc1.beta) * (mc2.energy - mc1.energy))
             if rval <= r:  # accept exchange
+                mm1 = mc1.s.mean()
+                mm2 = mc2.s.mean()
+                me1 = mc1.energy
+                me2 = mc2.energy
                 (mc1.s, mc2.s) = (mc2.s, mc1.s)
                 (mc1.energy, mc2.energy) = (mc2.energy, mc1.energy)
                 (exlog[id1], exlog[id2]) = (exlog[id2], exlog[id1])
-
-            mc1.energy = mc1.H(mc1.s)
-            mc2.energy = mc2.H(mc2.s)
+                assert mm1 == mc2.s.mean(), "m1 is incorrect"
+                assert mm2 == mc1.s.mean(), "m2 is incorrect"
+                assert me1 == mc2.H(mc2.s), "energy exchange fails in 1"
+                assert me2 == mc1.H(mc1.s), "energy exchange fails in 2"
 
             assert mc1.energy == mc1.H(mc1.s), "mc1[%d] energy:%f != H: %f" % (id1, mc1.energy, mc1.H(mc1.s))
             assert mc2.energy == mc2.H(mc2.s), "mc2[%d] energy:%f != H: %f" % (id2, mc2.energy, mc2.H(mc2.s))
