@@ -115,7 +115,8 @@ class IsingModelEMC:
         for mc in self.MCs:
             print( "pre=>  energy:%f, st.mean:%f, chk H(s): %f" % (mc.energy, mc.s.mean(), mc.H(mc.s)) )
         Es = []
-        States = np.zeros((iterations, self.nbeta, self.size)) 
+        # States = np.zeros((iterations, self.nbeta, self.size)) 
+        States = []
         exlogs = []
         Ms = []
         if reset is True:
@@ -131,12 +132,12 @@ class IsingModelEMC:
 
             exlogs.append(exl)
             Es.append([mc.energy for mc in self.MCs])
-            #States.append([mc.s for mc in self.MCs])
-            for b in range(self.nbeta):
-                States[it,b,:] = self.MCs[b].s
+            States.append(np.array([mc.s for mc in self.MCs]))
+            # for b in range(self.nbeta):
+            #     States[it, b, :] = self.MCs[b].s
             Ms.append([mc.s.mean() for mc in self.MCs])
 
-            #assert m23 == States[it][23].mean(), "m23:%f, slog:%f" % (m23, States[it][23].mean())
+            assert m23 == States[it][23].mean(), "m23:%f, slog:%f" % (m23, States[it][23].mean())
 
         exlogs = np.array(exlogs).reshape((iterations, self.nbeta))
         Es = np.array(Es).reshape((iterations, self.nbeta))
@@ -145,7 +146,7 @@ class IsingModelEMC:
 
 
         for mc in self.MCs:
-            print( "post=> energy:%f, st.mean:%f, chk H(s): %f" % (mc.energy, mc.s.mean(), mc.H(mc.s)) )
+            print("post=> energy:%f, st.mean:%f, chk H(s): %f" % (mc.energy, mc.s.mean(), mc.H(mc.s)))
 
         return {'exlogs': exlogs, 'Eslog': Es, 'slog': States, 'Ms': Ms}
 
