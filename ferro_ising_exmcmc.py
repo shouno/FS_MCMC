@@ -58,6 +58,8 @@ class IsingModelMC:
                 # print('reject')
                 self.s[idx] *= -1
 
+        assert self.energy == self.H(self.s), "Incorrect energy %f <=> %f" % (self.energy, self.H(self.s))
+
     def trace(self, iter, reset=False):
         Es = []
         States = []
@@ -104,26 +106,48 @@ class IsingModelEMC:
                 (mc1.s, mc2.s) = (mc2.s, mc1.s)
                 (mc1.energy, mc2.energy) = (mc2.energy, mc1.energy)
                 (exlog[id1], exlog[id2]) = (exlog[id2], exlog[id1])
+        for mc in self.MCs:
+            assert mc.energy == mc.H(mc.s), "post exchange energy is wrong"
+
         return exlog
 
     def trace(self, iterations, reset=False):
+        for mc in self.MCs:
+            print( "pre=>  energy:%f, st.mean:%f, chk H(s): %f" % (mc.energy, mc.s.mean(), mc.H(mc.s)) )
         Es = []
-        States = []
+        States = np.zeros((iterations, self.nbeta, self.size)) 
         exlogs = []
+        Ms = []
         if reset is True:
             for mc in self.MCs:
                 mc.acccnt = 0
 
         for it in tqdm(range(iterations)):
             exl = self.mcexstep(isodd=bool(it % 2))
+
+            e23 = self.MCs[23].energy
+            m23 = self.MCs[23].s.mean()
+            print("%d[23]: energy:%f, st.mean:%f, chk H(s): %f" % (it, e23, m23, self.MCs[23].H(self.MCs[23].s)))
+
             exlogs.append(exl)
             Es.append([mc.energy for mc in self.MCs])
-            States.append([mc.s for mc in self.MCs])
+            #States.append([mc.s for mc in self.MCs])
+            for b in range(self.nbeta):
+                States[it,b,:] = self.MCs[b].s
+            Ms.append([mc.s.mean() for mc in self.MCs])
+
+            #assert m23 == States[it][23].mean(), "m23:%f, slog:%f" % (m23, States[it][23].mean())
 
         exlogs = np.array(exlogs).reshape((iterations, self.nbeta))
         Es = np.array(Es).reshape((iterations, self.nbeta))
+        Ms = np.array(Ms).reshape((iterations, self.nbeta))
         States = np.array(States).reshape((iterations, self.nbeta, self.size))
-        return {'exlogs': exlogs, 'Eslog': Es, 'slog': States}
+
+
+        for mc in self.MCs:
+            print( "post=> energy:%f, st.mean:%f, chk H(s): %f" % (mc.energy, mc.s.mean(), mc.H(mc.s)) )
+
+        return {'exlogs': exlogs, 'Eslog': Es, 'slog': States, 'Ms': Ms}
 
 
 if __name__ == '__main__':
@@ -133,8 +157,8 @@ if __name__ == '__main__':
 
     model = IsingModelEMC(size, J=Jmat)
 
-    burn = model.trace(1000)
-    mclog = model.trace(1000)
+    burn = model.trace(500)
+    mclog = model.trace(500)
 
-    np.savez('burnlog.npz', Betas=model.betas, exlogs=burn['exlogs'], Eslog=burn['Eslog'], Slog=burn['slog'])
-    np.savez('mclog.npz', Betas=model.betas, exlogs=mclog['exlogs'], Eslog=mclog['Eslog'], Slog=mclog['slog'])
+    np.savez('burnlog.npz', Betas=model.betas, exlogs=burn['exlogs'], Eslog=burn['Eslog'], Slog=burn['slog'], Mlog=burn['Ms'])
+    np.savez('mclog.npz', Betas=model.betas, exlogs=mclog['exlogs'], Eslog=mclog['Eslog'], Slog=mclog['slog'], Mlog=mclog['Ms'])
