@@ -67,7 +67,7 @@ class IsingModelMC:
         for it in tqdm(range(iter)):
             self.mcstep()
             Es.append(self.energy)
-            States.append(self.s)
+            States.append(np.array(self.s))
 
         self.logs = {'energy': np.array(Es), 'state': np.array(States)}
         return self.logs
@@ -116,14 +116,16 @@ class IsingModelEMC:
 
         for it in tqdm(range(iterations)):
             exl = self.mcexstep(isodd=bool(it % 2))
+
             exlogs.append(exl)
             Es.append([mc.energy for mc in self.MCs])
-            States.append([mc.s for mc in self.MCs])
+            States.append(np.array([mc.s for mc in self.MCs]))
 
         exlogs = np.array(exlogs).reshape((iterations, self.nbeta))
         Es = np.array(Es).reshape((iterations, self.nbeta))
         States = np.array(States).reshape((iterations, self.nbeta, self.size))
-        return {'exlogs': exlogs, 'Eslog': Es, 'slog': States}
+
+        return {'Exlog': exlogs, 'Elog': Es, 'Slog': States}
 
 
 if __name__ == '__main__':
@@ -133,8 +135,8 @@ if __name__ == '__main__':
 
     model = IsingModelEMC(size, J=Jmat)
 
-    burn = model.trace(1000)
-    mclog = model.trace(1000)
+    burn = model.trace(5000)
+    mclog = model.trace(5000)
 
-    np.savez('burnlog.npz', Betas=model.betas, exlogs=burn['exlogs'], Eslog=burn['Eslog'], Slog=burn['slog'])
-    np.savez('mclog.npz', Betas=model.betas, exlogs=mclog['exlogs'], Eslog=mclog['Eslog'], Slog=mclog['slog'])
+    np.savez('burnlog.npz', Betas=model.betas, Exlog=burn['Exlog'], Elog=burn['Elog'], Slog=burn['Slog'])
+    np.savez('mclog.npz', Betas=model.betas, Exlog=mclog['Exlog'], Elog=mclog['Elog'], Slog=mclog['Slog'])
