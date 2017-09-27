@@ -106,16 +106,11 @@ class IsingModelEMC:
                 (mc1.s, mc2.s) = (mc2.s, mc1.s)
                 (mc1.energy, mc2.energy) = (mc2.energy, mc1.energy)
                 (exlog[id1], exlog[id2]) = (exlog[id2], exlog[id1])
-        for mc in self.MCs:
-            assert mc.energy == mc.H(mc.s), "post exchange energy is wrong"
 
         return exlog
 
     def trace(self, iterations, reset=False):
-        for mc in self.MCs:
-            print( "pre=>  energy:%f, st.mean:%f, chk H(s): %f" % (mc.energy, mc.s.mean(), mc.H(mc.s)) )
         Es = []
-        # States = np.zeros((iterations, self.nbeta, self.size)) 
         States = []
         exlogs = []
         if reset is True:
@@ -124,7 +119,6 @@ class IsingModelEMC:
 
         for it in tqdm(range(iterations)):
             exl = self.mcexstep(isodd=bool(it % 2))
-
             exlogs.append(exl)
             Es.append([mc.energy for mc in self.MCs])
             States.append(np.array([mc.s for mc in self.MCs]))
