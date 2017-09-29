@@ -58,8 +58,6 @@ class IsingModelMC:
                 # print('reject')
                 self.s[idx] *= -1
 
-        assert self.energy == self.H(self.s), "Incorrect energy %f <=> %f" % (self.energy, self.H(self.s))
-
     def trace(self, iter, reset=False):
         Es = []
         States = []
