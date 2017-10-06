@@ -1,24 +1,24 @@
+"""Ising 模型を EMC で"""
 #
 # -*- coding: utf-8 -*-
 #
 
 import numpy as np
 from tqdm import tqdm
-from math import pow
 
 # 温度交換バージョンをつくってみよう
 
 
 class IsingModelMC:
-    def __init__(self, size, beta=1., h=0.0, state=None, J=None):
-        self.size = size
+    '''Ising Model with single MC'''
+    def __init__(self, sz, beta=1., state=None, J=None):
+        self.size = sz
         if J is None:   # Ferro
             self.Jmat = np.ones((size, size)) - np.eye(size)
         else:
             self.Jmat = J
 
         self.beta = beta
-        self.h = h
         if state is None:
             self.s = np.random.binomial(1, 0.5, size=size) * 2 - 1.
         else:
@@ -28,9 +28,11 @@ class IsingModelMC:
         self.acccnt = 0
 
     def H(self, value):
+        '''Calculate Energy'''
         return - 0.5 * value.dot(self.Jmat.dot(value)) / self.size
 
     def mcstep(self, value=None):
+        '''update one MC step'''
         if self.beta == 0.:  # 温度∞ (beta=0.0) は全とっかえ
             self.s = np.random.binomial(1, 0.5, size=self.size) * 2 - 1.
             self.energy = self.H(self.s)
@@ -50,7 +52,7 @@ class IsingModelMC:
             pdelta = np.exp(-self.beta * delta)
 
             # print('r: %g, delta(new:%f - old:%f): %g' % (rvals[idx], newE, oldE, delta))
-            if(rvals[idx] < pdelta):  # 'accept'
+            if rvals[idx] < pdelta:  # 'accept'
                 # print('accept')
                 self.energy = newE
                 self.acccnt += 1
@@ -59,6 +61,7 @@ class IsingModelMC:
                 self.s[idx] *= -1
 
     def trace(self, iter, reset=False):
+        '''interation multi MC step'''
         Es = []
         States = []
         if reset is True:
@@ -74,8 +77,9 @@ class IsingModelMC:
 
 
 class IsingModelEMC:
-    def __init__(self, size, betas=None, h=0.0, state=None, J=None):
-        self.size = size
+    '''Ising model with Exchange MC'''
+    def __init__(self, sz, betas=None, state=None, J=None):
+        self.size = sz
         if betas is None:
             self.nbeta = 24
             self.betas = [pow(1.25, l-16+1) for l in range(self.nbeta)]   # 決め打ち
@@ -86,6 +90,7 @@ class IsingModelEMC:
         self.oddset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(1, self.nbeta-1, 2)]
 
     def mcexstep(self, isodd=False):
+        '''MC step with EX process'''
         for mc in self.MCs:
             mc.mcstep()
 
@@ -108,6 +113,7 @@ class IsingModelEMC:
         return exlog
 
     def trace(self, iterations, reset=False):
+        '''Multi MC-EX steps'''
         Es = []
         States = []
         exlogs = []
@@ -138,5 +144,5 @@ if __name__ == '__main__':
     burn = model.trace(5000)
     mclog = model.trace(5000)
 
-    np.savez('burnlog.npz', Betas=model.betas, Exlog=burn['Exlog'], Elog=burn['Elog'], Slog=burn['Slog'])
-    np.savez('mclog.npz', Betas=model.betas, Exlog=mclog['Exlog'], Elog=mclog['Elog'], Slog=mclog['Slog'])
+#    np.savez('burnlog.npz', Betas=model.betas, Exlog=burn['Exlog'], Elog=burn['Elog'], Slog=burn['Slog'])
+#    np.savez('mclog.npz', Betas=model.betas, Exlog=mclog['Exlog'], Elog=mclog['Elog'], Slog=mclog['Slog'])
