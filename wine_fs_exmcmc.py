@@ -9,12 +9,12 @@ from tqdm import tqdm
 from sklearn.model_selection import StratifiedKFold
 from sklearn.svm import LinearSVC
 from sklearn.datasets import load_wine
-from joblib import Parallel, delayed
+# from joblib import Parallel, delayed
 # from numba import jit, f8
 
 
 # クラス内においておくと激オソなので外に引っ張り出しておく
-def CVError(sval, X, y):
+def CVScore(sval, X, y):
         '''Definition of 'Energy function', that is a CV err
         input sval, dset
         output cverr
@@ -46,7 +46,7 @@ def MCstep(sval, energy, beta, X, y):
         acccnt = 0
         if beta == 0.:  # 温度∞ (beta=0.0) は全とっかえ
             sval = binomial(1, 0.5, size=size) * 2 - 1.
-            energy = size * CVError(sval, X, y)
+            energy = size * CVScore(sval, X, y)
             acccnt = size
             return energy, acccnt
         # 有限温度の場合
@@ -56,7 +56,7 @@ def MCstep(sval, energy, beta, X, y):
         for idx in order:
             oldE = energy
             sval[idx] *= -1
-            newE = size * CVError(sval, X, y)
+            newE = size * CVScore(sval, X, y)
             delta = newE - oldE
             pdelta = np.exp(-beta * delta)
 
@@ -83,7 +83,7 @@ class FSsingleMC:
         self.s = binomial(1, 0.5, size=self.size) * 2 - 1.
 
         # エネルギー関数
-        self.energy = CVError(self.s, self.X, self.y)
+        self.energy = CVScore(self.s, self.X, self.y)
         self.acccnt = 0
 
 
