@@ -1,7 +1,7 @@
-'''Feature selection for Wine Dataset'''
 #
 # -*- coding: utf-8 -*-
 #
+'''Feature selection for Wine Dataset'''
 
 import numpy as np
 from numpy.random import binomial, uniform, permutation
@@ -15,9 +15,9 @@ from sklearn.datasets import load_wine
 
 # クラス内においておくと激オソなので外に引っ張り出しておく
 def CVScore(sval, X, y):
-        '''Definition of 'Energy function', that is a CV err
+        '''Definition of 'Energy function', that is a CV score
         input sval, dset
-        output cverr
+        output average of minus cvscore
         '''
         nsplits = 5
         skf = StratifiedKFold(n_splits=nsplits)
@@ -83,7 +83,7 @@ class FSsingleMC:
         self.s = binomial(1, 0.5, size=self.size) * 2 - 1.
 
         # エネルギー関数
-        self.energy = CVScore(self.s, self.X, self.y)
+        self.energy = self.size * CVScore(self.s, self.X, self.y)
         self.acccnt = 0
 
 
@@ -107,6 +107,7 @@ class FeatureSelectionEMC:
         for mc in self.MCs:
             mc.energy, dummy = MCstep(mc.s, mc.energy, mc.beta, mc.X, mc.y)
             mc.acccnt += dummy
+            # r = [MCstep(mc.s, mc.energy, mc.beta, mc.X, mc.y) for mc in self.MCs]
 
         # exchange process
         if isodd:
@@ -149,7 +150,6 @@ class FeatureSelectionEMC:
 
 
 if __name__ == '__main__':
-
     wine = load_wine()
     X = wine['data']
     y = wine['target']
@@ -157,7 +157,6 @@ if __name__ == '__main__':
     XX = (X - X.mean(axis=0))/(X.std(axis=0))
     yy = np.array(wine['target'] == 0, dtype=np.float)
     model = FeatureSelectionEMC(dset={'X': XX, 'y': yy})
-
     burn = model.trace(5000)
     mclog = model.trace(5000)
 
