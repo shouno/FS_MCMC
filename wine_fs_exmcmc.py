@@ -9,70 +9,62 @@ from tqdm import tqdm
 from sklearn.model_selection import StratifiedKFold
 from sklearn.svm import LinearSVC
 from sklearn.datasets import load_wine
-# from joblib import Parallel, delayed
-# from numba import jit, f8
 
 
 # クラス内においておくと激オソなので外に引っ張り出しておく
-def CVScore(sval, X, y):
-        '''Definition of 'Energy function', that is a CV score
-        input sval, dset
-        output average of minus cvscore
-        '''
-        nsplits = 5
-        skf = StratifiedKFold(n_splits=nsplits)
-        clsf = LinearSVC(C=1.0)
-        cidx = np.array(sval+1, np.bool)    # sval が ±1 で構成されていることを課程
-        scrs = []
+def CVScore(sval, X, y, clsf, skf):
+    '''Definition of 'Energy function', that is a CV score'''
+    cidx = (sval == 1.0)   # 変数選択リストの作成
+    scrs = []
 
-        if cidx.sum() == 0:
-            return 0.5
+    if cidx.sum() == 0:
+        return 0.5
 
-        for trn, tst in skf.split(X, y):
-            clsf.fit(X[trn][:, cidx], y[trn])
-            pred = clsf.predict(X[tst][:, cidx])
-            scrs.append(- np.sum(y[tst] == pred) / (y[tst].shape[0]))
-        scrs = np.array(scrs)
-        return scrs.mean()
+    for trn, tst in skf.split(X, y):
+        clsf.fit(X[trn][:, cidx], y[trn])
+        pred = clsf.predict(X[tst][:, cidx])
+        scrs.append(- np.sum(y[tst] == pred) / (y[tst].shape[0]))
+
+    return np.array(scrs).mean()
 
 
 # @jit(nopython=True, cache=True)
-def MCstep(sval, energy, beta, X, y):
-        '''single MC step for trial value
-        input sval, energy, beta, dset
-        output sval, energy, accept count
-        '''
-        size = sval.shape[0]
-        acccnt = 0
-        if beta == 0.:  # 温度∞ (beta=0.0) は全とっかえ
-            sval = binomial(1, 0.5, size=size) * 2 - 1.
-            energy = size * CVScore(sval, X, y)
-            acccnt = size
-            return energy, acccnt
-        # 有限温度の場合
-        order = permutation(size)
-        rvals = uniform(0., 1., size)
+def MCstep(sval, energy, beta, X, y, clsf, skf):
+    '''single MC step for trial value'''
 
-        for idx in order:
-            oldE = energy
-            sval[idx] *= -1
-            newE = size * CVScore(sval, X, y)
-            delta = newE - oldE
-            pdelta = np.exp(-beta * delta)
-
-            if rvals[idx] < pdelta:
-                # 'accept' the state state
-                energy = newE
-                acccnt += 1
-            else:
-                # 'reject' restore
-                sval[idx] *= -1
+    size = sval.shape[0]
+    acccnt = 0
+    if beta == 0.:  # 温度∞ (beta=0.0) は全とっかえ
+        sval = binomial(1, 0.5, size=size) * 2 - 1.
+        energy = size * CVScore(sval, X, y, clsf, skf)
+        acccnt = size
         return energy, acccnt
+
+    # 有限温度の場合
+    order = permutation(size)
+    rvals = uniform(0., 1., size)
+
+    for idx in order:
+        oldE = energy
+        sval[idx] *= -1
+        newE = size * CVScore(sval, X, y, clsf, skf)
+        delta = newE - oldE
+        pdelta = np.exp(-beta * delta)
+
+        if rvals[idx] < pdelta:
+            # 'accept' the state state
+            energy = newE
+            acccnt += 1
+        else:
+            # 'reject' restore
+            sval[idx] *= -1
+
+    return energy, acccnt
 
 
 class FSsingleMC:
     '''Feature Selection with Sing MC'''
-    def __init__(self, dset, beta=1., nsplits=5, clsf=None):
+    def __init__(self, dset, beta=1., nsplits=5):
         # 識別データセット
         self.X = dset['X']
         self.y = dset['y']
@@ -82,8 +74,12 @@ class FSsingleMC:
         self.nsplits = nsplits
         self.s = binomial(1, 0.5, size=self.size) * 2 - 1.
 
+        # 識別器とCV用のクラスを内包しておく
+        self.clsf = LinearSVC(C=1.0)
+        self.skf = StratifiedKFold(n_splits=nsplits)
+
         # エネルギー関数
-        self.energy = self.size * CVScore(self.s, self.X, self.y)
+        self.energy = self.size * CVScore(self.s, self.X, self.y, self.clsf, self.skf)
         self.acccnt = 0
 
 
@@ -92,30 +88,29 @@ class FeatureSelectionEMC:
     def __init__(self, dset, betas=None, nsplits=5, clsf=None):
         self.size = dset['X'].shape[1]
         if betas is None:
-            self.nbeta = 16
-            self.betas = [pow(1.25, l-7+1) for l in range(self.nbeta)]   # 決め打ち
+            self.nbeta = 12
+            self.betas = [pow(1.5, l-7+1) for l in range(self.nbeta)]   # 決め打ち
             self.betas[0] = 0.
-            self.MCs = [FSsingleMC(dset, beta=beta, nsplits=nsplits, clsf=clsf)
-                        for beta in self.betas]
-        # betas が偶数なとき
-        self.evnset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(0, self.nbeta-1, 2)]
-        self.oddset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(1, self.nbeta-1, 2)]
+            self.MCs = [FSsingleMC(dset, beta=beta, nsplits=nsplits) for beta in self.betas]
+
+            self.evnset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(0, self.nbeta-1, 2)]
+            self.oddset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(1, self.nbeta-1, 2)]
 
     # @jit(cache=True)
     def mcexstep(self, isodd=False):
         '''A exchange MC step'''
         for mc in self.MCs:
-            mc.energy, dummy = MCstep(mc.s, mc.energy, mc.beta, mc.X, mc.y)
+            mc.energy, dummy = MCstep(mc.s, mc.energy, mc.beta, mc.X, mc.y, mc.clsf, mc.skf)
             mc.acccnt += dummy
             # r = [MCstep(mc.s, mc.energy, mc.beta, mc.X, mc.y) for mc in self.MCs]
+
+        exlog = np.arange(self.nbeta)
 
         # exchange process
         if isodd:
             exset = self.oddset
         else:
             exset = self.evnset
-
-        exlog = np.arange(self.nbeta)
 
         rvals = uniform(0., 1., len(exset))
         for (rval, (id1, id2, mc1, mc2)) in zip(rvals, exset):
@@ -145,8 +140,9 @@ class FeatureSelectionEMC:
         exlogs = np.array(exlogs).reshape((iterations, self.nbeta))
         Es = np.array(Es).reshape((iterations, self.nbeta))
         States = np.array(States).reshape((iterations, self.nbeta, self.size))
+        AccRate = np.array([mc.acccnt/(self.size*iterations) for mc in self.MCs])
 
-        return {'Exlog': exlogs, 'Elog': Es, 'Slog': States}
+        return {'Exlog': exlogs, 'Elog': Es, 'Slog': States, 'AccRate': AccRate}
 
 
 if __name__ == '__main__':
@@ -157,10 +153,12 @@ if __name__ == '__main__':
     XX = (X - X.mean(axis=0))/(X.std(axis=0))
     yy = np.array(wine['target'] == 0, dtype=np.float)
     model = FeatureSelectionEMC(dset={'X': XX, 'y': yy})
-    burn = model.trace(5000)
-    mclog = model.trace(5000)
+    burn = model.trace(1000)
+    mclog = model.trace(1000, reset=True)
 
-    np.savez('burnlog.npz', Betas=model.betas,
-             Exlog=burn['Exlog'], Elog=burn['Elog'], Slog=burn['Slog'])
-    np.savez('mclog.npz', Betas=model.betas,
-             Exlog=mclog['Exlog'], Elog=mclog['Elog'], Slog=mclog['Slog'])
+    np.savez('burnlogB15_12_1000.npz', Betas=model.betas,
+             Exlog=burn['Exlog'], Elog=burn['Elog'], Slog=burn['Slog'],
+             AccRate=burn['AccRate'])
+    np.savez('mclogB15_12_1000.npz', Betas=model.betas,
+             Exlog=mclog['Exlog'], Elog=mclog['Elog'], Slog=mclog['Slog'],
+             AccRate=mclog['AccRate'])
