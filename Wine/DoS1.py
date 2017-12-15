@@ -7,8 +7,12 @@ import matplotlib.pylab as plt
 
 size = 13   # dim.size of features in 'Wine' (see, wine_fs_exmcmc.py)
 
-ESlogfile = 'WineExsearch.npz'
-AESlogfile = 'mclogB15_12_1000.npz'
+#ESlogfile = 'WineExsearch.npz'
+ESlogfile = '/home/shouno/Desktop/WineExsearch_t0_F1.npz'
+#AESlogfile = 'mclogB15_12_1000.npz'
+#AESlogfile = '/home/shouno/Desktop/WineFS_t0_score_mclogB15_12_1000.npz'
+#AESlogfile = '/home/shouno/Desktop/WineFS_t0_score_mclogBe_6_1000.npz'
+AESlogfile = '/home/shouno/Desktop/WineFS_t0_F1_mclogB15_12_1000.npz'
 
 truees = np.load(ESlogfile)['Es']
 aeslog = np.load(AESlogfile)
@@ -21,7 +25,7 @@ mcbetas = aeslog['Betas']
 
 
 # setup of histogram
-hmin, hmax = -1.0, -0.5
+hmin, hmax = -1.0, 0.
 hnums = 40
 htics = np.linspace(hmin, hmax, num=hnums+1, endpoint=True)
 
@@ -33,7 +37,7 @@ Hbetas = np.array([np.histogram(mces[:, i], bins=htics)[0] for i in range(len(mc
 
 plt.clf()
 ext = (hmin, hmax, mcbetas[0], mcbetas[-1])
-plt.imshow(Hbetas, extent=ext, aspect=0.01)
+plt.imshow(Hbetas, extent=ext, aspect=0.05)
 plt.xlabel('Energy(negative CVscore)')
 plt.ylabel('Betas')
 plt.show()
@@ -49,7 +53,6 @@ def getDensity(Hs, Zs, Es, betas, N):
     '''
 
     numerator = np.sum(Hs, axis=0)
-    print(numerator)
     denominator = np.array([N * np.exp(-b * Es) / Z for (b, Z) in zip(betas, Zs)]).sum(axis=0)
     return numerator/denominator
 
@@ -73,9 +76,27 @@ EngTics = (htics[:-1] + htics[1:])/2.          # エネルギー軸の刻み E, 
 
 plt.figure()
 
-for it in range(10):
+for it in range(100):
     plt.plot(EngTics, Densities)
     Partitions = getPartition(Densities, EngTics, mcbetas)
     Densities = getDensity(Hbetas, Partitions, EngTics, mcbetas, mcitrs)
 
 plt.show()
+    
+plt.figure()
+
+Dall = Densities.sum()
+Densities /= Dall
+
+plt.semilogx(Densities, EngTics)
+plt.ylabel('Energy(negative CVscore)')
+plt.xlabel('Density')
+plt.title('Density of States')
+
+eshist = np.histogram(truees[1:]/13., bins=htics)[0]
+eshistall = eshist.sum()
+eshist = eshist / eshistall
+plt.semilogx(eshist, EngTics)
+
+plt.show()
+
