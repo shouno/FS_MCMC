@@ -11,12 +11,16 @@ from tqdm import tqdm
 
 class IsingModelMC:
     '''Ising Model with single MC'''
-    def __init__(self, sz, beta=1., state=None, J=None):
+    def __init__(self, sz, beta=1., state=None, h = None, J=None):
         self.size = sz
         if J is None:   # Ferro
             self.Jmat = np.ones((size, size)) - np.eye(size)
         else:
             self.Jmat = J
+        if h is None: # no bias
+            self.h = 0
+        else:
+            self.h = h   # bias　はこのあと考えてないので要対応       
 
         self.beta = beta
         if state is None:
@@ -84,7 +88,7 @@ class IsingModelEMC:
             self.nbeta = 24
             self.betas = [pow(1.25, l-16+1) for l in range(self.nbeta)]   # 決め打ち
             self.betas[0] = 0.
-        self.MCs = [IsingModelMC(size, beta=beta, h=h, state=state, J=J) for beta in self.betas]
+        self.MCs = [IsingModelMC(size, beta=beta, state=state, J=J) for beta in self.betas]
         # betas が偶数なとき
         self.evnset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(0, self.nbeta-1, 2)]
         self.oddset = [(i, i+1, self.MCs[i], self.MCs[i+1]) for i in range(1, self.nbeta-1, 2)]
